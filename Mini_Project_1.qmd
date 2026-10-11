@@ -1,0 +1,126 @@
+---
+title: "Mini_Project_1"
+author: Isaac Romano
+format: pdf
+editor_options: 
+  chunk_output_type: console
+---
+
+Introduction:
+
+In this project, I will be using text and sentiment analysis to explore the frequency of words and create visualizations on a dataset of Radiohead song lyrics. The dataset is found on the Kaggle website and contains all the lyrics of all the songs of Radiohead up until their last album release in 2016.
+
+
+```{r}
+#| include: false
+library(tidyverse)
+library(tidytext)
+library(dplyr)
+
+#Saving out data with the name Radiohead
+Radiohead <- read.csv("new_data_1.csv")
+
+```
+
+```{r}
+#| include: false
+Radiohead <- Radiohead |> 
+  mutate(
+    #replaces "by Radiohead" with "", removing that line.
+    Track.Name = str_replace(Track.Name, "\\s+by\\s+Radiohead", ""),
+    Album.Name = str_replace(Album.Name, "\\s+by\\s+Radiohead", ""),
+    #counting how many times "i, me, my, and myself appears.
+    self_count = str_count(Lyrics, "\\b(i|me|my|myself)\\b"),
+    #Find weather the lyrics in a song contains rain
+    rain_mentions = str_detect(Lyrics, "rain")
+  )
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+OK_Computer_album <- Radiohead |> 
+  #focusing only on the album OK Computer
+  filter(Album.Name == "OK Computer")
+
+#removing common stop words
+OK_Computer_words <- OK_Computer_album |> 
+  unnest_tokens(word, Lyrics) |> 
+  anti_join(stop_words)
+
+#10 most unique repeated words from the album OK Computer
+OK_Computer_words |> 
+  count(word, sort = TRUE) |> 
+  head(10) |> 
+  mutate(word = reorder(word, n)) |> 
+  ggplot(aes(x = n, y = word)) +
+  geom_col(fill = "blue") +
+  labs(
+    title = "Top 10 Most Frequent Words in OK Computer",
+    x = "Total Appearances",
+    y = "Word Lyric"
+  )
+```
+
+In the first graph, it shows the top 10 most frequent words on the album OK Computer after removing stop words (common words) from the lyrics. Because of what the data reveals, we are able to get a feel of how the album is plays out because of words like "slow", "rain", and "lost".
+
+```{r}
+#| echo: false
+#| warning: false
+#shows the 10 most positive/negative words with bing sentiment
+#in a geom_col chart
+OK_Computer_words |> 
+  inner_join(get_sentiments("bing")) |>
+  count(sentiment, word, sort = TRUE) |>
+  group_by(sentiment) |>
+  slice_max(n, n = 10) |> 
+  ungroup() |>
+  ggplot(aes(x = fct_reorder(word, n), y = n, fill = sentiment)) +
+    geom_col() +  
+    coord_flip() +
+    facet_wrap(~ sentiment, scales = "free") +
+    labs(
+      title = "Sentiment Lyrics in OK Computer",
+      x = "Sentiment Word",
+      y = "Total Appearances"
+    )
+
+```
+
+This chart is a faceted bar chart with its x and y values flipped displaying the top 10 frequent unique positive and negative words in Radiohead's album OK Computer. Its x-axis is number (the amount of times the words appeared), and the y-axis is word, (the positive or negative unique words). From the faceted bar chart, we can see that the album OK Computer by Radiohead, contains more negative words than positive words. For the negative words chart, the highest repetition of a negative word repeat 12 times, compare to the positive word bar chart, the highest only repeat 3 times.
+
+# Understanding the Sentiment Tone
+From our second graph, we are able clearly able to see the difference between positive and negative words throughout the album OK Computer. In the negative side, words like "slow", "lost", and "choke" appear the most in the album. These words explores the themes of the album. On the other hand, "pretty", "love" and "warm are the most appeared words on the album, but the amount of times they appear throughout the album.  
+
+```{r}
+#| echo: false
+#| warning: false
+Radiohead |> 
+  #filters the data to only focus on the album OK Computer
+  filter(Album.Name == "OK Computer") |> 
+  #reodering song tittle by the amount of time first person pronounce appears
+  mutate(Track.Name = reorder(Track.Name, self_count)) |>
+  
+  ggplot(aes(x = Track.Name, y = self_count)) +
+  geom_col(fill = "red") +
+  coord_flip() +
+  labs(
+    title = "First-Person Count throughout OK Computer Album ",
+    x = "Song Title",
+    y = "Total Count Of First Person Pronouns"
+    
+  )
+
+```
+
+# Perspectives Changes
+On our final graph, we count how many times a first-person pronouns appear in each song. Because of this count, we are able to understand how lonely the narrator feels in each song. From the chart, we see that "Karma Police" had the highest self reference with over 20 appearances. On the other side, songs like "Fitter Happier" and "Exit Music(For A Film)" show almost no self references. This makes sense because "Fitter Happier" is spoken by a robot rather than a human, while "Exit Music" is about two characters escaping. 
+
+# Conclusion
+Throughout this text analysis, we focused on the Lyrics of the album OK Computer by Radiohead instead of reviews. By using text analysis tools, we were able to break down the lyrics and show patterns in each song and throughout the album. Our first graph, shows us the tone and feelings of the album, "uptight", "slow", and "rain" are some of the most repeated words throughout the album. On our second graph(sentiment graph), it clearly shows how more negative sentiment words appear more often than positive sentiment words. The words "slow", "lost", "choke", and "paranoid", show the anxious language. On our final graph, which tracks first person pronouns reveals how the narrative switches throughout each song, between cries of help to robotic detachment. This data shows how the album OK Computer is structured to give feelings of isolation and anxiety.
+
+```{r}
+write_csv(Radiohead, "Radiohead_lyrics.cvs")
+```
+
